@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự Đoán Kết Quả Tài/Xỉu</title>
+    <!-- Liên kết với Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEJ3QF7CkEESxL9rZ48uR4XwAp4K5zPpovLjA7Scu6BlchOcsdT22fs5Dk8J6" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <header class="text-center">
+            <h1 class="display-4 text-primary mb-4">Dự Đoán Kết Quả Tài/Xỉu</h1>
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo mb-4">
+        </header>
+
+        <!-- Form nhập 6 kết quả -->
+        <div class="card mb-5">
+            <div class="card-header text-white bg-primary">
+                <h4>Nhập 6 kết quả</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/">
+                    <div class="mb-3">
+                        <label for="result_1" class="form-label">Nhập kết quả 1:</label>
+                        <input type="text" class="form-control" id="result_1" name="result_1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="result_2" class="form-label">Nhập kết quả 2:</label>
+                        <input type="text" class="form-control" id="result_2" name="result_2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="result_3" class="form-label">Nhập kết quả 3:</label>
+                        <input type="text" class="form-control" id="result_3" name="result_3" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="result_4" class="form-label">Nhập kết quả 4:</label>
+                        <input type="text" class="form-control" id="result_4" name="result_4" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="result_5" class="form-label">Nhập kết quả 5:</label>
+                        <input type="text" class="form-control" id="result_5" name="result_5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="result_6" class="form-label">Nhập kết quả 6:</label>
+                        <input type="text" class="form-control" id="result_6" name="result_6" required>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100">Dự đoán</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Hiển thị kết quả dự đoán -->
+        {% if prediction %}
+            <div class="card">
+                <div class="card-header text-white bg-success">
+                    <h4>Kết quả dự đoán tiếp theo:</h4>
+                </div>
+                <div class="card-body">
+                    <p><strong>Dự đoán tiếp theo:</strong> 
+                        <span class="badge 
+                            {% if prediction['next_prediction'] == 'Tài' %}
+                                bg-success
+                            {% else %}
+                                bg-danger
+                            {% endif %}">
+                            {{ prediction['next_prediction'] }}
+                        </span> 
+                        với xác suất <strong>{{ prediction['confidence'] }}%</strong>
+                    </p>
+
+                    <!-- Mẫu cầu hiện tại -->
+                    <div class="mb-4">
+                        <p><strong>Mẫu cầu hiện tại:</strong> 
+                            <span class="badge bg-warning">{{ prediction['pattern'] }}</span> với xác suất <strong>{{ prediction['pattern_confidence'] }}%</strong>
+                        </p>
+                    </div>
+
+                    <!-- Lịch sử kết quả -->
+                    <h5>Lịch sử kết quả:</h5>
+                    <ul class="list-group mb-4">
+                        {% for result in prediction['history'] %}
+                            <li class="list-group-item">{{ result }}</li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Form nhập kết quả tiếp theo -->
+                    <form method="POST" action="/">
+                        <div class="mb-3">
+                            <label for="result_new" class="form-label">Nhập kết quả tiếp theo:</label>
+                            <input type="text" class="form-control" id="result_new" name="result_new" placeholder="Nhập kết quả Tài hoặc Xỉu">
+                        </div>
+                        <button type="submit" class="btn btn-warning btn-lg w-100">Nhập thêm kết quả</button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Liên kết với Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz4fnFO9gyb+LY1jwYcbxniJlCEx8+xCkRuTp5tE2Xq+03Ns8pBBFbf0p2" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-pzjw8f+ua7Kw1TIq0U1tM5d0F9g2d10xX0y35tx2y+rtp4Ff5kq6+k7ayWaG7p9t" crossorigin="anonymous"></script>
+</body>
+</html>
