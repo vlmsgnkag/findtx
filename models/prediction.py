@@ -52,7 +52,16 @@ def train_models():
     
     vectorizer = CountVectorizer()
     X = vectorizer.fit_transform(histories)
-    
+
+    model = xgb.XGBClassifier()  # Mô hình XGBoost
+    vectorizer = CountVectorizer()  # Dùng CountVectorizer để chuyển dữ liệu thành dạng số
+    label_encoder = LabelEncoder()  # Mã hóa nhãn (Tài, Xỉu)
+    # Tiến hành huấn luyện mô hình
+    X_train = ["Tài", "Xỉu", "Tài", "Xỉu", "Tài", "Xỉu"]
+    y_train = ["Tài", "Xỉu", "Tài", "Xỉu", "Tài", "Xỉu"]
+    X_train_vec = vectorizer.fit_transform(X_train)  # Chuyển dữ liệu thành vector
+    y_train_encoded = label_encoder.fit_transform(y_train)  # Mã hóa nhãn
+    model.fit(X_train_vec, y_train_encoded)
     models = {}
     models["logistic_regression"] = LogisticRegression()
     models["logistic_regression"].fit(X, targets)
@@ -64,7 +73,7 @@ def train_models():
     xgb_model.fit(X, targets)
     models["xgboost"] = xgb_model
 
-    return models, vectorizer, label_encoder
+    return model, vectorizer, label_encoder
 
 def predict_with_models(models, vectorizer, label_encoder, history):
     history_str = " ".join(history)
@@ -88,7 +97,7 @@ def predict_with_models(models, vectorizer, label_encoder, history):
 
 def detect_pattern(history):
     patterns = [
-{"name": "Cầu Bệt (4 kết quả giống nhau)", 
+        {"name": "Cầu Bệt (4 kết quả giống nhau)", 
          "rule": lambda h: len(h) >= 4 and all(x == h[-1] for x in h[-4:]), 
          "confidence": 0.99},
         {"name": "Cầu Siêu Bệt (7 kết quả giống nhau trở lên)", 
@@ -203,15 +212,14 @@ def detect_pattern(history):
          "confidence": 0.93},
         # Thêm các mẫu cầu khác nếu cần
     ]
-    
+    pattern_confidence = 0.98  # Giả lập xác suất mẫu cầu
     possible_patterns = [p for p in patterns if p["rule"](history)]
-    
+
     if not possible_patterns:
         return "Không có cầu rõ ràng", 0.85
     
     best_pattern = max(possible_patterns, key=lambda p: p["confidence"])
     return best_pattern["name"], best_pattern["confidence"]
-
 def weighted_probability(history):
     count_tai = 0
     count_xiu = 0
@@ -237,12 +245,16 @@ def weighted_probability(history):
 # Hàm này là nơi kết hợp các dự đoán từ các mô hình
 def ensemble_prediction(history, models, vectorizer, label_encoder):
     predictions = predict_with_models(models, vectorizer, label_encoder, history)
-    
+    history_str = ' '.join(history)
+    history_vec = vectorizer.transform([history_str])
+    prediction = models.predict(history_vec)
+    confidence = models.predict_proba(history_vec).max() * 100  # Dự đoán xác suất
     # Dự đoán từ phân tích mẫu cầu
     pattern, pattern_confidence = detect_pattern(history)
 
     # Dự đoán từ trọng số mũ
     prob_tai, prob_xiu = weighted_probability(history)
+    next_prediction = label_encoder.inverse_transform(prediction)[0]
 
     # Kết hợp các phương pháp để đưa ra dự đoán cuối cùng
     final_predictions = {}
