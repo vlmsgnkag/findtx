@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request
+import os
 from models.prediction import train_models, ensemble_prediction, detect_pattern  # Import mô hình từ models/prediction.py
 
 app = Flask(__name__)
