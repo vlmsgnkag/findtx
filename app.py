@@ -1,6 +1,8 @@
+import os
 from flask import Flask, render_template, request, jsonify
 from haha import simulate_games
 
+# Khởi tạo Flask app
 app = Flask(__name__)
 
 @app.route('/')
@@ -24,11 +26,14 @@ def simulate():
         response = {
             "total_tai": tai_total,
             "total_xiu": xiu_total,
-            "results": results
+            "results": results,
+            "final_result": "Tài" if tai_total > xiu_total else "Xỉu" if tai_total < xiu_total else "Hòa"
         }
         return jsonify(response), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Lấy cổng từ biến môi trường PORT, nếu không có thì sử dụng cổng 4000
+    port = int(os.environ.get('PORT', 4000))
+    app.run(port=port)  # Không cần host ở đây
