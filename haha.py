@@ -2,24 +2,44 @@ import hashlib
 import random
 import secrets
 import os
+import numpy as np
+from sklearn.linear_model import LogisticRegression
 
-# Hàm chuyển MD5 thành seed chính xác hơn
 def md5_to_seed(md5_hash):
+    # Kiểm tra đầu vào MD5 hợp lệ
     if len(md5_hash) != 32 or not all(c in "0123456789abcdefABCDEF" for c in md5_hash):
         raise ValueError("MD5 hash không hợp lệ! Nó phải có 32 ký tự hex.")
-    seed = int(md5_hash, 16)  # Chuyển đổi MD5 (hex) thành số
+    
+    # Chuyển MD5 thành 128-bit và chia thành các phần 32-bit
+    seed = int(md5_hash, 16)  # Chuyển MD5 (hex) thành số
     return seed
 
-# Cải tiến phương pháp phân tách MD5 thành nhiều seed để sử dụng cho các RNG khác nhau
+# Cải tiến phân tách MD5 thành nhiều seed độc lập bằng cách XOR các phần của MD5
 def md5_to_multiple_seeds(md5_hash):
+    # Chia MD5 thành 4 phần 32-bit
     part1 = int(md5_hash[:8], 16)
     part2 = int(md5_hash[8:16], 16)
     part3 = int(md5_hash[16:24], 16)
     part4 = int(md5_hash[24:], 16)
+
+    # XOR các phần của MD5 để tạo ra 4 seed độc lập
     seed1 = part1 ^ part2
     seed2 = part2 ^ part3
     seed3 = part3 ^ part4
     seed4 = part4 ^ part1
+
+    return seed1, seed2, seed3, seed4
+
+# Kết hợp MD5 với thời gian hệ thống để tạo seed mạnh mẽ hơn
+def combine_md5_with_time(md5_hash):
+    current_time = str(os.time())  # Lấy thời gian hệ thống hiện tại
+    combined_hash = hashlib.md5((md5_hash + current_time).encode('utf-8')).hexdigest()
+    return combined_hash
+
+# Chuyển đổi MD5 thành seed mạnh mẽ hơn và tối ưu hóa phân bố
+def optimized_md5_to_seed(md5_hash):
+    combined_md5 = combine_md5_with_time(md5_hash)  # Kết hợp MD5 với thời gian hệ thống
+    seed1, seed2, seed3, seed4 = md5_to_multiple_seeds(combined_md5)  # Phân tách MD5 thành nhiều seed
     return seed1, seed2, seed3, seed4
 
 # Mersenne Twister (MT19937)
@@ -127,6 +147,14 @@ class PCG:
         self.state = (self.a * self.state + self.c) % self.m
         return min_val + (self.state % (max_val - min_val + 1))
 
+# True Random Number Generator (TRNG)
+class TRNG:
+    def __init__(self):
+        self.state = secrets.SystemRandom()
+
+    def randint(self, min_val, max_val):
+        return self.state.randint(min_val, max_val)
+
 # Hàm khởi tạo tất cả RNG
 def initialize_all_rngs(md5_hash):
     seed1, seed2, seed3, seed4 = md5_to_multiple_seeds(md5_hash)
@@ -141,11 +169,12 @@ def initialize_all_rngs(md5_hash):
     sha256_rng = SHA256RNG(str(seed2))  # SHA-256 Cryptographic RNG
     well_rng = WELL(seed4)  # WELL RNG
     pcg_rng = PCG(seed3)  # PCG RNG
+    trng = TRNG()  # True Random Number Generator
 
-    return mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng
+    return mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng, trng
 
 # Hàm mô phỏng một phiên chơi Tài Xỉu
-def play_game(mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng):
+def play_game(mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng, trng):
     dice_mt = [mt_rng.randint(1, 6) for _ in range(3)]
     total_mt = sum(dice_mt)
     
@@ -176,6 +205,9 @@ def play_game(mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorsh
     dice_pcg = [pcg_rng.randint(1, 6) for _ in range(3)]
     total_pcg = sum(dice_pcg)
 
+    dice_trng = [trng.randint(1, 6) for _ in range(3)]
+    total_trng = sum(dice_trng)
+
     print(f"Mersenne Twister RNG: {dice_mt} (Tổng: {total_mt})")
     print(f"Cryptographic RNG: {dice_crypto} (Tổng: {total_crypto})")
     print(f"OS-based RNG: {dice_os} (Tổng: {total_os})")
@@ -186,6 +218,7 @@ def play_game(mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorsh
     print(f"SHA-256 RNG: {dice_sha256} (Tổng: {total_sha256})")
     print(f"WELL RNG: {dice_well} (Tổng: {total_well})")
     print(f"PCG RNG: {dice_pcg} (Tổng: {total_pcg})")
+    print(f"TRNG: {dice_trng} (Tổng: {total_trng})")
 
     result_mt = "Tài" if total_mt > 10 else "Xỉu"
     result_crypto = "Tài" if total_crypto > 10 else "Xỉu"
@@ -197,12 +230,13 @@ def play_game(mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorsh
     result_sha256 = "Tài" if total_sha256 > 10 else "Xỉu"
     result_well = "Tài" if total_well > 10 else "Xỉu"
     result_pcg = "Tài" if total_pcg > 10 else "Xỉu"
+    result_trng = "Tài" if total_trng > 10 else "Xỉu"
 
-    return result_mt, result_crypto, result_os, result_lcg, result_xorshift, result_fisher_yates, result_xorshift_add, result_sha256, result_well, result_pcg
+    return result_mt, result_crypto, result_os, result_lcg, result_xorshift, result_fisher_yates, result_xorshift_add, result_sha256, result_well, result_pcg, result_trng
 
 # Hàm mô phỏng nhiều phiên chơi
 def simulate_games(md5_hash, num_games=10000):
-    mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng = initialize_all_rngs(md5_hash)
+    mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng, trng = initialize_all_rngs(md5_hash)
 
     results = {
         "Tài (MT)": 0, "Xỉu (MT)": 0,
@@ -215,12 +249,13 @@ def simulate_games(md5_hash, num_games=10000):
         "Tài (SHA256)": 0, "Xỉu (SHA256)": 0,
         "Tài (WELL)": 0, "Xỉu (WELL)": 0,
         "Tài (PCG)": 0, "Xỉu (PCG)": 0,
+        "Tài (TRNG)": 0, "Xỉu (TRNG)": 0,
     }
 
     for i in range(num_games):
         print(f"\nPhiên chơi {i + 1}:")
-        result_mt, result_crypto, result_os, result_lcg, result_xorshift, result_fisher_yates, result_xorshift_add, result_sha256, result_well, result_pcg = play_game(
-            mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng)
+        result_mt, result_crypto, result_os, result_lcg, result_xorshift, result_fisher_yates, result_xorshift_add, result_sha256, result_well, result_pcg, result_trng = play_game(
+            mt_rng, crypto_rng, os_rng, lcg, xorshift, fisher_yates_rng, xorshift_add, sha256_rng, well_rng, pcg_rng, trng)
 
         results[f"Tài (MT)" if result_mt == "Tài" else f"Xỉu (MT)"] += 1
         results[f"Tài (Crypto)" if result_crypto == "Tài" else f"Xỉu (Crypto)"] += 1
@@ -232,6 +267,7 @@ def simulate_games(md5_hash, num_games=10000):
         results[f"Tài (SHA256)" if result_sha256 == "Tài" else f"Xỉu (SHA256)"] += 1
         results[f"Tài (WELL)" if result_well == "Tài" else f"Xỉu (WELL)"] += 1
         results[f"Tài (PCG)" if result_pcg == "Tài" else f"Xỉu (PCG)"] += 1
+        results[f"Tài (TRNG)" if result_trng == "Tài" else f"Xỉu (TRNG)"] += 1
 
     return results
 
